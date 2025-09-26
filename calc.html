@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>購入価格計算ツール（口数付き）</title>
+  <style>
+    body { font-family: sans-serif; margin: 20px; }
+    textarea { width: 100%; height: 200px; }
+    button { margin-top: 10px; padding: 8px 16px; }
+    #result { margin-top: 20px; font-size: 1.2em; font-weight: bold; line-height: 1.5; }
+  </style>
+</head>
+<body>
+  <h1>購入価格計算ツール（口数表示）</h1>
+  <p>ブラウザからコピーしたテキストを下に貼り付けて「計算」を押してください。</p>
+  <textarea id="input"></textarea><br>
+  <button onclick="runCalc()">計算</button>
+
+  <div id="result"></div>
+
+  <script>
+    function cleanNumber(s) {
+      if (!s) return null;
+      s = s.replace(/[,+円口()%]/g, "").trim();
+      return parseFloat(s);
+    }
+
+    function extractValues(lines) {
+      const vals = {};
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i].trim();
+        if (line.includes("評価額") && !line.includes("評価額（")) {
+          if (i+3 < lines.length) vals["評価額"] = cleanNumber(lines[i+3]);
+        }
+        if (line.includes("口数")) {
+          if (i+3 < lines.length) vals["口数"] = cleanNumber(lines[i+3]);
+        }
+        if (line.includes("解約価額")) {
+          if (i+3 < lines.length) vals["解約価額"] = cleanNumber(lines[i+3]);
+        }
+        if (line.includes("評価損益")) {
+          if (i+1 < lines.length) vals["評価損益"] = cleanNumber(lines[i+1]);
+        }
+      }
+      return vals;
+    }
+
+    function runCalc() {
+      const text = document.getElementById("input").value;
+      const lines = text.split(/\r?\n/);
+      const vals = extractValues(lines);
+
+      const resultDiv = document.getElementById("result");
+      resultDiv.innerHTML = "";
+
+      if (!vals["評価額"] || !vals["解約価額"] || !vals["評価損益"] || !vals["口数"]) {
+        resultDiv.textContent = "必要な値が抽出できません。";
+        return;
+      }
+
+      const valuation = vals["評価額"];
+      const redemption = vals["解約価額"];
+      const profit = vals["評価損益"];
+      const quantity = vals["口数"];
+
+      // 購入価格 = 解約価額 * (1 - 評価損益 / 評価額)
+      const purchase = redemption * (1 - profit / valuation);
+      const quantityDisplay = (quantity / 10000).toFixed(1); // 10000単位に変換
+
+      // 表示：口数を購入価格の一つ上に
+      resultDiv.innerHTML = `
+        口数（万口単位）: ${quantityDisplay}<br>
+        購入価格: ${Math.round(purchase)}<br><br>
+        抽出値:<br>
+        評価額 = ${valuation}<br>
+        解約価額 = ${redemption}<br>
+        評価損益 = ${profit}<br>
+        元の口数 = ${quantity}
+      `;
+    }
+  </script>
+</body>
+</html>
